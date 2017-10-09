@@ -44,7 +44,9 @@ def reg():
         return resp
 
     except Exception as e:
-        return json.dumps({'error': str(e)})
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
 
     finally:
         cursor.close()
@@ -72,12 +74,79 @@ def login():
         is_true = check_password_hash(user_db_info[2], _pw)
 
         if is_true:
-            js = json.dumps({'result_code': 200, 'result_body': 'true'})
+            js = json.dumps({'result_code': 200, 'result_body': user_db_info})
         else:
-            js = json.dumps({'result_code': 200, 'result_body': 'false'})
+            js = json.dumps({'result_code': 201, 'result_body': 'false'})
 
         resp = Response(js, status=200, mimetype='application/json')
 
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/sns/arr', methods=['POST'])
+def arr():
+    _hash_arr = request.form.getlist("hash")
+    for hash_item in _hash_arr:
+        Print.print_str(hash_item)
+    return str(len(_hash_arr))
+
+
+@app.route('/sns/write', methods=['POST'])
+def write():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        _post = request.form['post']
+        _user_id = request.form['user_id']
+
+        params_contents = {
+            '_post': _post,
+            '_user_id': int(_user_id)
+        }
+
+        query_contents = """INSERT INTO sns_contents (post, user_id) 
+                    VALUES (%(_post)s,%(_user_id)s)"""
+        cursor.execute(query_contents, params_contents)
+
+        content_id = conn.insert_id()
+
+        _hash_arr = request.form.getlist("hash")
+
+        _hashtag_arr = []
+
+        for hash_item in _hash_arr:
+            cursor.execute("SELECT * FROM sns_hashtag WHERE tag= %s", hash_item)
+            exist_tag = cursor.fetchone()
+
+            if exist_tag is not None:
+                _hashtag_arr.append(exist_tag[0])
+            else:
+                cursor.execute("""INSERT INTO sns_hashtag (tag)
+                            VALUES (%s)""", hash_item)
+                _hashtag_arr.append(conn.insert_id())
+
+        for hash_id in _hashtag_arr:
+            params_ch = {
+                'content_id': int(content_id),
+                'hash_id': int(hash_id)
+            }
+            query_ch = """INSERT INTO sns_ch (content_id, hash_id) 
+                               VALUES (%(content_id)s,%(hash_id)s)"""
+            cursor.execute(query_ch, params_ch)
+
+        conn.commit()
+        js = json.dumps({'result_code': 200})
+        resp = Response(js, status=200, mimetype='application/json')
         return resp
 
     except Exception as e:
