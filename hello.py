@@ -1,11 +1,17 @@
-from flask import Flask, json, Response, request
+import flask
+import time
+from os.path import splitext
+import os.path
+from flask import Flask, json, Response, request, jsonify, send_from_directory
 from flaskext.mysql import MySQL
+from werkzeug.utils import secure_filename
+
 from print import Print
 from werkzeug.security import generate_password_hash, \
     check_password_hash
 
 mysql = MySQL()
-app = Flask(__name__)
+app = Flask(__name__, static_folder="./public", static_path='')
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'npe'
@@ -13,6 +19,8 @@ app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
+
+upload_folder = "/Users/qazz92/pythonProject/public/"
 
 
 @app.route('/')
@@ -92,12 +100,45 @@ def login():
         conn.close()
 
 
-@app.route('/sns/arr', methods=['POST'])
-def arr():
-    _hash_arr = request.form.getlist("hash")
-    for hash_item in _hash_arr:
-        Print.print_str(hash_item)
-    return str(len(_hash_arr))
+@app.route('/sns/list/<path:page>', methods=['GET'])
+def getlist(page):
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        query = """SELECT sns_contents.id,post,email,
+    ifnull((SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id),'test.jpg') as imgs,
+    sns_contents.updated_at as updated_at
+    FROM sns_contents JOIN users ON sns_contents.user_id = users.id ORDER BY sns_contents.updated_at DESC"""
+        cursor.execute(query)
+        # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
+        columns = cursor.description
+        sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
+
+        # json_data = []
+        # for result in sns_list:
+        #     json_data.append(dict(zip(row_headers, result)))
+        # for idx, result in sns_list:
+
+        js = json.dumps({'result_code': 200, 'result_body': sns_list})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def splitext_(path):
+    for ext in ['.tar.gz', '.tar.bz2']:
+        if path.endswith(ext):
+            return path[:-len(ext)], path[-len(ext):]
+    return splitext(path)
 
 
 @app.route('/sns/write', methods=['POST'])
@@ -106,8 +147,10 @@ def write():
     cursor = conn.cursor()
 
     try:
-        _post = request.form['post']
-        _user_id = request.form['user_id']
+        _post = flask.request.form.get('post')
+        _imagefile = flask.request.files.getlist('imagefile')
+        _user_id = flask.request.form.get('user_id')
+        _hash_arr = flask.request.form.getlist("hash")
 
         params_contents = {
             '_post': _post,
@@ -119,8 +162,6 @@ def write():
         cursor.execute(query_contents, params_contents)
 
         content_id = conn.insert_id()
-
-        _hash_arr = request.form.getlist("hash")
 
         _hashtag_arr = []
 
@@ -144,6 +185,63 @@ def write():
                                VALUES (%(content_id)s,%(hash_id)s)"""
             cursor.execute(query_ch, params_ch)
 
+        if os.path.exists(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id):
+            Print.print_str("있음")
+        else:
+            Print.print_str("없음")
+            os.makedirs(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id)
+            if os.path.exists(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id):
+                Print.print_str("없어서 만드는데 성공함")
+            else:
+                Print.print_str("없어서 만드는 코드를 실행하긴 했는데 확인해보니 사실 없음")
+
+        for i in range(len(_imagefile)):
+            filename = secure_filename(_imagefile[i].filename)
+            _imagefile[i].save(os.path.join(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id, filename))
+
+            params_imgs = {
+                'img_path': filename,
+                'img_ext': splitext_(filename)[1],
+                'content_id': content_id,
+            }
+
+            query_imgs = """insert into sns_imgs (img_path, img_ext, content_id)
+                               values (%(img_path)s, %(img_ext)s, %(content_id)s)"""
+            cursor.execute(query_imgs, params_imgs)
+
+        conn.commit()
+        js = json.dumps({'result_code': 200, 'result_body': '글을 저장했습니다.'})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route("/sns/like", methods=['POST'])
+def like():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+
+        _content_id = request.form['content_id']
+        _user_id = request.form['user_id']
+
+        params_contents = {
+            '_content_id': _content_id,
+            '_user_id': int(_user_id)
+        }
+
+        query_contents = """INSERT INTO sns_like (content_id, user_id) 
+                    VALUES (%(_content_id)s,%(_user_id)s)"""
+        cursor.execute(query_contents, params_contents)
         conn.commit()
         js = json.dumps({'result_code': 200})
         resp = Response(js, status=200, mimetype='application/json')
@@ -161,4 +259,6 @@ def write():
 
 if __name__ == '__main__':
     app.debug = True
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        Print.print_str("start!")
     app.run(host='0.0.0.0')
