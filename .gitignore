@@ -2,4 +2,14 @@ venv/
 
 .idea/
 
+Lib/
+
+Include/
+
+Scripts/
+
+tcl/
+
 __pycache__/
+
+pip-selfcheck.json

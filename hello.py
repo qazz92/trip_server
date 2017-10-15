@@ -20,7 +20,7 @@ app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
-upload_folder = "/Users/qazz92/pythonProject/public/"
+upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
 
 @app.route('/')
@@ -185,22 +185,24 @@ def write():
                                VALUES (%(content_id)s,%(hash_id)s)"""
             cursor.execute(query_ch, params_ch)
 
-        if os.path.exists(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id):
+        make_foler=upload_folder + time.strftime("%Y%m%d") + "/" + _user_id
+
+        if os.path.exists(make_foler):
             Print.print_str("있음")
         else:
             Print.print_str("없음")
-            os.makedirs(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id)
-            if os.path.exists(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id):
+            os.makedirs(make_foler)
+            if os.path.exists(make_foler):
                 Print.print_str("없어서 만드는데 성공함")
             else:
                 Print.print_str("없어서 만드는 코드를 실행하긴 했는데 확인해보니 사실 없음")
 
         for i in range(len(_imagefile)):
             filename = secure_filename(_imagefile[i].filename)
-            _imagefile[i].save(os.path.join(upload_folder + time.strftime("%Y%m%d") + "/" + _user_id, filename))
+            _imagefile[i].save(os.path.join(make_foler, filename))
 
             params_imgs = {
-                'img_path': filename,
+                'img_path': time.strftime("%Y%m%d") + "/" + _user_id+"/"+filename,
                 'img_ext': splitext_(filename)[1],
                 'content_id': content_id,
             }
