@@ -20,7 +20,7 @@ app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
-upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
+upload_folder = "/Users/qazz92/pythonProject/public"
 
 
 @app.route('/')
@@ -106,10 +106,16 @@ def getlist(page):
     cursor = conn.cursor()
 
     try:
-        query = """SELECT sns_contents.id,post,email,
-    ifnull((SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id),'test.jpg') as imgs,
-    sns_contents.updated_at as updated_at
-    FROM sns_contents JOIN users ON sns_contents.user_id = users.id ORDER BY sns_contents.updated_at DESC"""
+        query = """SELECT sns_contents.id,
+                  sns_contents.post,
+                  users.email,
+                  (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
+                  ifnull((SELECT group_concat(concat(users.email)) FROM sns_like JOIN users ON sns_like.user_id = users.id),'none') as like_user,
+                  ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
+                  (SELECT count(*) FROM sns_like WHERE content_id=sns_contents.id) as like_count,
+                  sns_contents.updated_at
+                FROM sns_contents JOIN users ON sns_contents.user_id = users.id
+                ORDER BY sns_contents.updated_at DESC"""
         cursor.execute(query)
         # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
         columns = cursor.description
@@ -244,6 +250,38 @@ def like():
         query_contents = """INSERT INTO sns_like (content_id, user_id) 
                     VALUES (%(_content_id)s,%(_user_id)s)"""
         cursor.execute(query_contents, params_contents)
+        _like_id = conn.insert_id()
+        conn.commit()
+        js = json.dumps({'result_code': 200, 'result_body': _like_id})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route("/sns/unlike", methods=['POST'])
+def unlike():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        _content_id = request.form['content_id']
+        _user_id = request.form['user_id']
+
+        params_unlike = {
+            '_content_id': _content_id,
+            '_user_id': int(_user_id)
+        }
+
+        query_unlike = """DELETE FROM sns_like WHERE content_id = %(_content_id)s AND user_id = %(_user_id)s"""
+        cursor.execute(query_unlike, params_unlike)
         conn.commit()
         js = json.dumps({'result_code': 200})
         resp = Response(js, status=200, mimetype='application/json')
