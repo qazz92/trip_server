@@ -20,8 +20,8 @@ app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
-upload_folder = "/Users/qazz92/pythonProject/public"
-
+# upload_folder = "/Users/qazz92/pythonProject/public"
+upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
 @app.route('/')
 def hello_world():
