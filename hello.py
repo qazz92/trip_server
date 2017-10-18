@@ -106,17 +106,22 @@ def getlist(page):
     cursor = conn.cursor()
 
     try:
+        i_page = int(page)
         query = """SELECT sns_contents.id,
                   sns_contents.post,
+                  users.nickname,
                   users.email,
                   (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
-                  ifnull((SELECT group_concat(concat(users.email)) FROM sns_like JOIN users ON sns_like.user_id = users.id),'none') as like_user,
+                  ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
                   ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
-                  (SELECT count(*) FROM sns_like WHERE content_id=sns_contents.id) as like_count,
+                  (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
                   sns_contents.updated_at
                 FROM sns_contents JOIN users ON sns_contents.user_id = users.id
-                ORDER BY sns_contents.updated_at DESC"""
-        cursor.execute(query)
+                ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
+        if i_page == 1:
+            cursor.execute(query, 0)
+        else:
+            cursor.execute(query, (i_page+1) * (i_page+1) + (i_page+1))
         # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
         columns = cursor.description
         sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
@@ -126,7 +131,7 @@ def getlist(page):
         #     json_data.append(dict(zip(row_headers, result)))
         # for idx, result in sns_list:
 
-        js = json.dumps({'result_code': 200, 'result_body': sns_list})
+        js = json.dumps({'result_code': 200, 'items_count': cursor.rowcount, 'result_body': sns_list})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
 
