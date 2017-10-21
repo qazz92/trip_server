@@ -20,8 +20,10 @@ app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
-# upload_folder = "/Users/qazz92/pythonProject/public"
-upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
+upload_folder = "/Users/qazz92/pythonProject/public"
+
+
+# upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
 @app.route('/')
 def hello_world():
@@ -121,7 +123,7 @@ def getlist(page):
         if i_page == 1:
             cursor.execute(query, 0)
         else:
-            cursor.execute(query, (i_page+1) * (i_page+1) + (i_page+1))
+            cursor.execute(query, (i_page + 1) * (i_page + 1) + (i_page + 1))
         # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
         columns = cursor.description
         sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
@@ -158,10 +160,13 @@ def write():
     cursor = conn.cursor()
 
     try:
-        _post = flask.request.form.get('post')
-        _imagefile = flask.request.files.getlist('imagefile')
-        _user_id = flask.request.form.get('user_id')
-        _hash_arr = flask.request.form.getlist("hash")
+        _post = request.form.get('post')
+        # _imagefile = flask.request.files.getlist('imagefile')
+        # _user_id = flask.request.form.get('user_id')
+        # _hash_arr = flask.request.form.getlist("hash")
+        _imagefile = request.files.getlist('imagefile')
+        _user_id = request.form.get('user_id')
+        _hash_arr = request.form.getlist("hash")
 
         params_contents = {
             '_post': _post,
@@ -196,7 +201,7 @@ def write():
                                VALUES (%(content_id)s,%(hash_id)s)"""
             cursor.execute(query_ch, params_ch)
 
-        make_foler=upload_folder + time.strftime("%Y%m%d") + "/" + _user_id
+        make_foler = upload_folder + "/" + time.strftime("%Y%m%d") + "/" + _user_id
 
         if os.path.exists(make_foler):
             Print.print_str("있음")
@@ -213,7 +218,7 @@ def write():
             _imagefile[i].save(os.path.join(make_foler, filename))
 
             params_imgs = {
-                'img_path': time.strftime("%Y%m%d") + "/" + _user_id+"/"+filename,
+                'img_path': time.strftime("%Y%m%d") + "/" + _user_id + "/" + filename,
                 'img_ext': splitext_(filename)[1],
                 'content_id': content_id,
             }
