@@ -2,7 +2,7 @@ import flask
 import time
 from os.path import splitext
 import os.path
-from flask import Flask, json, Response, request, jsonify, send_from_directory
+from flask import Flask, json, Response, request, jsonify, send_from_directory, render_template
 from flaskext.mysql import MySQL
 from werkzeug.utils import secure_filename
 
@@ -20,10 +20,9 @@ app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
-upload_folder = "/Users/qazz92/pythonProject/public"
+# upload_folder = "/Users/qazz92/pythonProject/public"
+upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
-
-# upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
 @app.route('/')
 def hello_world():
@@ -301,6 +300,70 @@ def unlike():
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# 메일보내기
+
+@app.route('/send_mail', methods=['GET'])
+def send_mail():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        query = """select con.contents, con.want_date, con.user_id, group_concat(img.img_path SEPARATOR ',') as img, group_concat(toge.email SEPARATOR ',') as email
+                    from (capsule con LEFT JOIN capsule_imgs img on con.id = img.capsule_id)
+                    LEFT JOIN capsule_together toge on con.id = toge.capsule_id
+                    WHERE con.id = 21
+                    GROUP BY con.id"""
+        cursor.execute(query)
+        capsule_db = cursor.fetchall()
+        # Message(보내는 제목, 보내는사람 이메일, 받는사람 이메일)
+
+        for mails in capsule_db:
+            mail_arr = mails[4].split(',')
+            for mail in mail_arr:
+                Print.print_str(mail)
+        # msg = Message("Hello",
+        #
+        #               sender="npe.dongauniv@gmail.com",
+        #
+        #               recipients=["rhfoqkq000@naver.com"])
+        #
+        # # with app.open_resource("statics/img/image.jpg") as fp:
+        #
+        # #    msg.attach("image.jpg", "image/jpg", fp.read())
+        #
+        #
+        #
+        # with app.app_context():
+        #
+        #     # 메일 내용 보내기
+        #
+        #     # msg.body = "Hello, World!"
+        #
+        #     # 메일 템플릿
+        #
+        #     msg.html = render_template("mailTemplate.html")
+        #
+        #     # 메일 사진 보내기
+        #
+        #     with app.open_resource("statics/img/me.jpg") as fp:
+        #
+        #         msg.attach("me.jpg", "image/jpg", fp.read())
+        #
+        #     mail.send(msg)
+        #
+        # # return app.logger.info('메일 성공!')
+        js = json.dumps({'result_code': 200, 'result_body': capsule_db})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        return app.logger.error(e)
 
     finally:
         cursor.close()
