@@ -21,6 +21,8 @@ app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
 mysql.init_app(app)
 
 upload_folder = "/Users/qazz92/pythonProject/public"
+
+
 # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 
 
@@ -53,6 +55,7 @@ def reg():
         return resp
 
     except Exception as e:
+        conn.rollback()
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -116,7 +119,8 @@ def getlist(page):
                   ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
                   ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
                   (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
-                  sns_contents.updated_at
+                  (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
+                   DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
                 FROM sns_contents JOIN users ON sns_contents.user_id = users.id
                 ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
         if i_page == 1:
@@ -137,6 +141,102 @@ def getlist(page):
         return resp
 
     except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route("/sns/comment/write", methods=['POST'])
+def commentwrite():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+
+        _content_id = request.form['content_id']
+        _user_id = request.form['user_id']
+        _article = request.form['article']
+
+        Print.print_str(_article)
+
+        params_comment = {
+            '_content_id': int(_content_id),
+            '_user_id': int(_user_id),
+            '_article': _article
+        }
+
+        query_comment = """INSERT INTO
+            sns_comment(user_id, content_id, article)
+                    VALUES (%(_user_id)s,%(_content_id)s, %(_article)s)"""
+        cursor.execute(query_comment, params_comment)
+        query = """SELECT sns_comment.id as id,
+            sns_comment.article as article, users.nickname as nickname,
+            DATE_FORMAT(sns_comment.updated_at, '%%Y/%%c/%%e %%T') as updated_at
+            FROM sns_comment JOIN users ON sns_comment.user_id = users.id WHERE content_id = %s and user_id= %s
+            ORDER BY sns_comment.updated_at DESC LIMIT 1"""
+        cursor.execute(query, (int(_content_id), int(_user_id)))
+        conn.commit()
+
+        columns = cursor.description
+        sns_comment_recent_one = [{columns[index][0]: column for index, column in enumerate(value)} for value in
+                                  cursor.fetchall()]
+
+        js = json.dumps({'result_code': 200, 'items_count': cursor.rowcount, 'result_body': sns_comment_recent_one})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        conn.rollback()
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/sns/<path:content_id>/comment/<path:page>', methods=['GET'])
+def getcommentlist(content_id, page):
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        i_content_id = int(content_id)
+        i_page = int(page)
+
+        query = """SELECT sns_comment.id as id, 
+            sns_comment.article as article, users.nickname as nickname, 
+             DATE_FORMAT(sns_comment.updated_at, '%%Y/%%c/%%e %%T') as updated_at  
+            FROM sns_comment JOIN users ON sns_comment.user_id = users.id WHERE content_id = %(_content_id)s
+            ORDER BY sns_comment.updated_at LIMIT 10 OFFSET %(_page)s"""
+        if i_page == 1:
+            params = {
+                '_content_id': i_content_id,
+                '_page': 0
+            }
+        else:
+            params = {
+                '_content_id': i_content_id,
+                '_page': (i_page + 1) * (i_page + 1) + (i_page + 1)
+            }
+
+        cursor.execute(query, params)
+        # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
+        columns = cursor.description
+        sns_comment_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in
+                            cursor.fetchall()]
+
+        js = json.dumps({'result_code': 200, 'items_count': cursor.rowcount, 'result_body': sns_comment_list})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        conn.rollback()
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -232,6 +332,7 @@ def write():
         return resp
 
     except Exception as e:
+        conn.rollback()
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -266,6 +367,7 @@ def like():
         return resp
 
     except Exception as e:
+        conn.rollback()
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -297,6 +399,7 @@ def unlike():
         return resp
 
     except Exception as e:
+        conn.rollback()
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
