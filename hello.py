@@ -2,13 +2,14 @@ import flask
 import time
 from os.path import splitext
 import os.path
-from flask import Flask, json, Response, request, jsonify, send_from_directory, render_template
+from flask import Flask, json, Response, request
 from flaskext.mysql import MySQL
 from werkzeug.utils import secure_filename
 
 from print import Print
 from werkzeug.security import generate_password_hash, \
     check_password_hash
+from werkzeug.contrib.fixers import ProxyFix
 
 mysql = MySQL()
 app = Flask(__name__, static_folder="./public", static_path='')
@@ -149,7 +150,7 @@ def getlist(page):
 
 
 @app.route('/sns/list/<path:hashtag>/<path:page>', methods=['GET'])
-def getlistforhash(hashtag,page):
+def getlistforhash(hashtag, page):
     conn = mysql.connect()
     cursor = conn.cursor()
 
@@ -200,7 +201,7 @@ def getkeyword(keyword):
     cursor = conn.cursor()
 
     try:
-        keyword_set = "%"+keyword+"%"
+        keyword_set = "%" + keyword + "%"
         query = """ SELECT concat('#',tag) as result FROM sns_hashtag WHERE tag LIKE %s UNION
                     SELECT  concat('@',nickname) as result FROM users WHERE nickname LIKE %s
                     """
@@ -553,6 +554,8 @@ def send_mail():
         cursor.close()
         conn.close()
 
+
+app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
     app.debug = True
