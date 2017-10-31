@@ -226,10 +226,10 @@ def getlistforhash(category, hashtag, page):
                            DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
                         FROM sns_contents JOIN users ON sns_contents.user_id = users.id
                          JOIN sns_location ON sns_location.id=sns_contents.location_id
-                    WHERE users.id=%s
+                    WHERE users.nickname=%s
                         ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
             if i_page == 1:
-                cursor.execute(query, (int(hashtag), 0))
+                cursor.execute(query, (hashtag, 0))
             else:
                 cursor.execute(query, (int(hashtag), (i_page + 1) * (i_page + 1) + (i_page + 1)))
         else:
