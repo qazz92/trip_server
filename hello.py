@@ -14,14 +14,14 @@ mysql = MySQL()
 app = Flask(__name__, static_folder="./public", static_path='')
 
 # MySQL configurations
-app.config['MYSQL_DATABASE_USER'] = 'npe'
+app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
 app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
-app.config['MYSQL_DATABASE_HOST'] = '45.77.31.224'
+app.config['MYSQL_DATABASE_HOST'] = 'dongaboomin.xyz'
 mysql.init_app(app)
 
-upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
-# upload_folder = "/Users/qazz92/pythonProject/public"
+# upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
+upload_folder = "/Users/qazz92/pythonProject/public"
 
 
 @app.route('/')
