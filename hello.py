@@ -18,11 +18,11 @@ app = Flask(__name__, static_folder="./public", static_path='')
 app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
 app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
-app.config['MYSQL_DATABASE_HOST'] = 'dongaboomin.xyz'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
 # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
-upload_folder = "/Users/qazz92/pythonProject/public"
+upload_folder = "/root/trip_server/public"
 
 
 @app.route('/')
