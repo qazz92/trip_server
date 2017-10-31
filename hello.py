@@ -310,6 +310,74 @@ def getlistforhash(category, hashtag, page):
         conn.close()
 
 
+# 지역 검색
+@app.route('/location/search', methods=['POST'])
+def searchlocation():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        _search = request.form['search']
+
+        Print.print_str(_search)
+
+        likeSe = "'%"+_search+"%'"
+
+        query = "select * from sns_location where sns_location.location like "+likeSe+" or sns_location.location_alias like "+likeSe
+
+        cursor.execute(query)
+
+        columns = cursor.description
+        sns_location_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
+        Print.print_str(sns_location_list)
+        js = json.dumps({'result_code': 200, 'result_body': sns_location_list})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        Print.print_str(str(e))
+        return json.dumps({'error': str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# 지역 추가
+@app.route('/location/insert', methods=['POST'])
+def insertlocation():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        _location = request.form['location']
+        _location_alias = request.form['location_alias']
+
+        Print.print_str(_location)
+        Print.print_str(_location_alias)
+
+        params = {
+            '_location': _location,
+            '_location_alias': _location_alias,
+        }
+
+        query = """insert into sns_location (location, location_alias) 
+                 values (%(_location)s, %(_location_alias)s)"""
+        cursor.execute(query, params)
+        conn.commit()
+        js = json.dumps({'result_code': 200})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        Print.print_str(str(e))
+        return json.dumps({'error': str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+        
+
 @app.route('/sns/search/<path:keyword>', methods=['GET'])
 def getkeyword(keyword):
     conn = mysql.connect()
@@ -463,14 +531,27 @@ def write():
         _imagefile = request.files.getlist('imagefile')
         _user_id = request.form.get('user_id')
         _hash_arr = request.form.getlist("hash")
+        _location = request.form.get("location")
+        _location_alias = request.form.get("location_alias")
+
+        params_location = {
+            '_location': _location,
+            '_location_alias': _location_alias,
+        }
+
+        query = """insert into sns_location (location, location_alias) 
+                 values (%(_location)s, %(_location_alias)s)"""
+        cursor.execute(query, params_location)
+        _location_id = conn.insert_id()
 
         params_contents = {
             '_post': _post,
-            '_user_id': int(_user_id)
+            '_user_id': int(_user_id),
+            '_location_id': int(_location_id)
         }
 
-        query_contents = """INSERT INTO sns_contents (post, user_id) 
-                    VALUES (%(_post)s,%(_user_id)s)"""
+        query_contents = """INSERT INTO sns_contents (post, user_id, location_id) 
+                    VALUES (%(_post)s,%(_user_id)s,%(_location_id)s)"""
         cursor.execute(query_contents, params_contents)
 
         content_id = conn.insert_id()
@@ -537,6 +618,93 @@ def write():
     finally:
         cursor.close()
         conn.close()
+# @app.route('/sns/write', methods=['POST'])
+# def write():
+#     conn = mysql.connect()
+#     cursor = conn.cursor()
+#
+#     try:
+#         _post = request.form.get('post')
+#         # _imagefile = flask.request.files.getlist('imagefile')
+#         # _user_id = flask.request.form.get('user_id')
+#         # _hash_arr = flask.request.form.getlist("hash")
+#         _imagefile = request.files.getlist('imagefile')
+#         _user_id = request.form.get('user_id')
+#         _hash_arr = request.form.getlist("hash")
+#
+#         params_contents = {
+#             '_post': _post,
+#             '_user_id': int(_user_id)
+#         }
+#
+#         query_contents = """INSERT INTO sns_contents (post, user_id)
+#                     VALUES (%(_post)s,%(_user_id)s)"""
+#         cursor.execute(query_contents, params_contents)
+#
+#         content_id = conn.insert_id()
+#
+#         _hashtag_arr = []
+#
+#         for hash_item in _hash_arr:
+#             cursor.execute("SELECT * FROM sns_hashtag WHERE tag= %s", hash_item)
+#             exist_tag = cursor.fetchone()
+#
+#             if exist_tag is not None:
+#                 _hashtag_arr.append(exist_tag[0])
+#             else:
+#                 cursor.execute("""INSERT INTO sns_hashtag (tag)
+#                             VALUES (%s)""", hash_item)
+#                 _hashtag_arr.append(conn.insert_id())
+#
+#         for hash_id in _hashtag_arr:
+#             params_ch = {
+#                 'content_id': int(content_id),
+#                 'hash_id': int(hash_id)
+#             }
+#             query_ch = """INSERT INTO sns_ch (content_id, hash_id)
+#                                VALUES (%(content_id)s,%(hash_id)s)"""
+#             cursor.execute(query_ch, params_ch)
+#
+#         make_foler = upload_folder + "/" + time.strftime("%Y%m%d") + "/" + _user_id
+#
+#         if os.path.exists(make_foler):
+#             Print.print_str("있음")
+#         else:
+#             Print.print_str("없음")
+#             os.makedirs(make_foler)
+#             if os.path.exists(make_foler):
+#                 Print.print_str("없어서 만드는데 성공함")
+#             else:
+#                 Print.print_str("없어서 만드는 코드를 실행하긴 했는데 확인해보니 사실 없음")
+#
+#         for i in range(len(_imagefile)):
+#             filename = secure_filename(_imagefile[i].filename)
+#             _imagefile[i].save(os.path.join(make_foler, filename))
+#
+#             params_imgs = {
+#                 'img_path': time.strftime("%Y%m%d") + "/" + _user_id + "/" + filename,
+#                 'img_ext': splitext_(filename)[1],
+#                 'content_id': content_id,
+#             }
+#
+#             query_imgs = """insert into sns_imgs (img_path, img_ext, content_id)
+#                                values (%(img_path)s, %(img_ext)s, %(content_id)s)"""
+#             cursor.execute(query_imgs, params_imgs)
+#
+#         conn.commit()
+#         js = json.dumps({'result_code': 200, 'result_body': '글을 저장했습니다.'})
+#         resp = Response(js, status=200, mimetype='application/json')
+#         return resp
+#
+#     except Exception as e:
+#         conn.rollback()
+#         js = json.dumps({'result_code': 500, 'result_body': str(e)})
+#         resp = Response(js, status=200, mimetype='application/json')
+#         return resp
+#
+#     finally:
+#         cursor.close()
+#         conn.close()
 
 
 @app.route("/sns/like", methods=['POST'])
