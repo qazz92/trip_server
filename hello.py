@@ -23,6 +23,7 @@ mysql.init_app(app)
 
 # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 upload_folder = "/root/trip_server/public"
+# upload_folder = "/Users/qazz92/pythonProject/trip_server/public"
 
 
 @app.route('/')
@@ -91,6 +92,31 @@ def login():
 
         resp = Response(js, status=200, mimetype='application/json')
 
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/hotchu', methods=['GET'])
+def get_hotchu_list():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        query = """select id,title,summary,content,img_path,DATE_FORMAT(updated_at, '%Y/%c/%e %T') as updated_at from hotchu"""
+        cursor.execute(query)
+        # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
+        columns = cursor.description
+        sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
+        js = json.dumps({'result_code': 200, 'items_count': cursor.rowcount, 'result_body': sns_list})
+        resp = Response(js, status=200, mimetype='application/json')
         return resp
 
     except Exception as e:
@@ -224,7 +250,7 @@ def getlistforhash(category, hashtag, page):
                         JOIN sns_location ON sns_location.id=sns_contents.location_id
                         WHERE sns_location.location like %s OR sns_location.location_alias LIKE %s
                         ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
-            hashtagSet = '%'+hashtag+'%'
+            hashtagSet = '%' + hashtag + '%'
             if i_page == 1:
                 cursor.execute(query, (hashtagSet, hashtagSet, 0))
             else:
