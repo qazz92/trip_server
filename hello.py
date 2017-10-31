@@ -23,6 +23,8 @@ mysql.init_app(app)
 
 # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 upload_folder = "/root/trip_server/public"
+
+
 # upload_folder = "/Users/qazz92/pythonProject/trip_server/public"
 
 
@@ -123,6 +125,35 @@ def get_hotchu_list():
         js = json.dumps({'result_code': 500, 'result_body': str(e)})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# 해시태그 목록 불러오기
+@app.route('/hashtag', methods=['GET'])
+def gethashtag():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+
+        query = "SELECT concat('@',nickname) as result FROM users UNION SELECT concat('#',tag) as result FROM sns_hashtag UNION SELECT concat('~',location_alias) as result FROM sns_location"
+
+        cursor.execute(query)
+
+        columns = cursor.description
+        sns_tag_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in
+                        cursor.fetchall()]
+        Print.print_str(sns_tag_list)
+        js = json.dumps({'result_code': 200, 'result_body': sns_tag_list})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        Print.print_str(str(e))
+        return json.dumps({'error': str(e)})
 
     finally:
         cursor.close()
