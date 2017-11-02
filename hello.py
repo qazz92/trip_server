@@ -862,6 +862,28 @@ def write():
 #         cursor.close()
 #         conn.close()
 
+@app.route('/sns/delete/<path:number>', methods=['GET'])
+def deleteSns(number):
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+
+        query = """delete from trip.sns_contents where id=%s;"""
+        cursor.execute(query, number)
+        conn.commit()
+        js = json.dumps({'result_code': 200})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        Print.print_str(str(e))
+        return json.dumps({'error': str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.route('/sns/list/like/<path:page>/<path:user_id>', methods=['GET'])
 def getlistlike(page, user_id):
@@ -1052,7 +1074,7 @@ def send_mail(today_content, today_email):
 
 
 # 오늘 메일을 보내야하는 사람 선택하기
-@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=19, minute=30)
+@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=6, minute=1)
 @app.route('/select_mail', methods=['GET'])
 def select_mail():
     conn = mysql.connect()
