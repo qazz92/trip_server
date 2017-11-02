@@ -1074,7 +1074,7 @@ def send_mail(today_content, today_email):
 
 
 # 오늘 메일을 보내야하는 사람 선택하기
-@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=6, minute=18)
+@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=6, minute=30)
 @app.route('/select_mail', methods=['GET'])
 def select_mail():
     conn = mysql.connect()
