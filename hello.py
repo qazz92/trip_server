@@ -30,7 +30,7 @@ MAIL_USERNAME = 'npe.dongauniv@gmail.com'
 MAIL_PASSWORD = 'Q!2dltnals'
 
 mysql = MySQL()
-app = Flask(__name__, template_folder='./templates', static_folder='./public', static_path='')
+app = Flask(__name__,template_folder='./templates', static_folder='./public', static_path='')
 app.config.from_object(__name__)
 mail = Mail(app)
 ctx = app.app_context()
@@ -1093,6 +1093,7 @@ def select_mail():
             db_contents = popDB[0]
             db_mails = popDB[1].split(',')
             for mails in db_mails:
+                Print.print_str(mails)
                 mail_arr.append(mails)
 
             send_mail(db_contents, mail_arr)
