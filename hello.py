@@ -1,3 +1,5 @@
+from sched import scheduler
+
 import flask
 import time
 from os.path import splitext
@@ -10,6 +12,13 @@ from print import Print
 from werkzeug.security import generate_password_hash, \
     check_password_hash
 from werkzeug.contrib.fixers import ProxyFix
+from flask_mail import Mail, Message
+from werkzeug.utils import secure_filename
+from apscheduler.schedulers.background import BackgroundScheduler
+import time
+
+
+
 
 mysql = MySQL()
 app = Flask(__name__, static_folder="./public", static_path='')
@@ -20,6 +29,8 @@ app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
+mail = Mail(app)
+scheduler = BackgroundScheduler()
 
 # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
 upload_folder = "/root/trip_server/public"
@@ -31,6 +42,92 @@ upload_folder = "/root/trip_server/public"
 @app.route('/')
 def hello_world():
     return 'Hello World!'
+
+
+# 캡슐
+@app.route('/capsule', methods=['POST'])
+def capsule():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        _contents = flask.request.form['contents']
+        _want_date = flask.request.form['want_date']
+        _user_id = flask.request.form['user_id']
+        _imagefile = flask.request.files.getlist('imagefile')
+        _together = flask.request.form.getlist('together')
+
+        Print.print_str(_together)
+
+        params_contents = {
+            '_contents': _contents,
+            '_want_date': _want_date,
+            '_user_id': int(_user_id)
+        }
+
+        query_contents = """INSERT INTO capsule (contents, want_date, user_id)
+                            VALUES (%(_contents)s,%(_want_date)s,%(_user_id)s)"""
+
+        cursor.execute(query_contents, params_contents)
+        capsule_id = conn.insert_id()
+
+        make_folder = upload_folder + "/" + time.strftime("%Y%m%d") + "/" + _user_id
+
+        if os.path.exists(make_folder):
+            Print.print_str("있음")
+        else:
+            Print.print_str("없음")
+            os.makedirs(make_folder)
+            if os.path.exists(make_folder):
+                Print.print_str("없어서 만드는데 성공함")
+            else:
+                Print.print_str("없어서 만드는 코드를 실행하긴 했는데 확인해보니 사실 없음")
+
+        for i in range(len(_imagefile)):
+            filename = secure_filename(_imagefile[i].filename)
+            _imagefile[i].save(os.path.join(make_folder, filename))
+
+            params_imgs = {
+                'img_path': time.strftime("%Y%m%d") + "/" + _user_id + "/" + filename,
+                'img_ext': splitext_(filename)[1],
+                'capsule_id': int(capsule_id)
+            }
+
+            query_imgs = """insert into capsule_imgs (img_path, img_ext, capsule_id)
+                                       values (%(img_path)s, %(img_ext)s, %(capsule_id)s)"""
+            cursor.execute(query_imgs, params_imgs)
+
+        for j in range(len(_together)):
+            params_together = {
+                'email': _together[j],
+                'capsule_id': int(capsule_id)
+            }
+
+            query_together = """insert into capsule_together (email, capsule_id)
+                                                   values (%(email)s, %(capsule_id)s)"""
+            cursor.execute(query_together, params_together)
+
+        conn.commit()
+        js = json.dumps({'result_code': 200})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        Print.print_str(str(e))
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def splitext_(path):
+    for ext in ['.tar.gz', '.tar.bz2']:
+        if path.endswith(ext):
+            return path[:-len(ext)], path[-len(ext):]
+        return splitext(path)
 
 
 # 회원가입
@@ -782,57 +879,56 @@ def unlike():
 
 
 # 메일보내기
-
 @app.route('/send_mail', methods=['GET'])
-def send_mail():
+def send_mail(today_content, today_email):
     conn = mysql.connect()
     cursor = conn.cursor()
-
     try:
-        query = """select con.contents, con.want_date, con.user_id, group_concat(img.img_path SEPARATOR ',') as img, group_concat(toge.email SEPARATOR ',') as email
-                    from (capsule con LEFT JOIN capsule_imgs img on con.id = img.capsule_id)
-                    LEFT JOIN capsule_together toge on con.id = toge.capsule_id
-                    WHERE con.id = 21
-                    GROUP BY con.id"""
-        cursor.execute(query)
-        capsule_db = cursor.fetchall()
-        # Message(보내는 제목, 보내는사람 이메일, 받는사람 이메일)
+        # for popEmail in todayEmail:
+        #     Print.print_str(popEmail)
 
-        for mails in capsule_db:
-            mail_arr = mails[4].split(',')
-            for mail in mail_arr:
-                Print.print_str(mail)
-        # msg = Message("Hello",
-        #
-        #               sender="npe.dongauniv@gmail.com",
-        #
-        #               recipients=["rhfoqkq000@naver.com"])
-        #
-        # # with app.open_resource("statics/img/image.jpg") as fp:
-        #
-        # #    msg.attach("image.jpg", "image/jpg", fp.read())
-        #
-        #
-        #
-        # with app.app_context():
-        #
-        #     # 메일 내용 보내기
-        #
-        #     # msg.body = "Hello, World!"
-        #
-        #     # 메일 템플릿
-        #
-        #     msg.html = render_template("mailTemplate.html")
-        #
-        #     # 메일 사진 보내기
-        #
-        #     with app.open_resource("statics/img/me.jpg") as fp:
-        #
-        #         msg.attach("me.jpg", "image/jpg", fp.read())
-        #
-        #     mail.send(msg)
-        #
-        # # return app.logger.info('메일 성공!')
+        _email = today_email[0]
+
+        params_contents = {
+            '_email': _email,
+        }
+
+        query = """SELECT
+                   ifnull((SELECT group_concat(concat(capsule_imgs.img_path)) FROM capsule_imgs WHERE capsule_together.capsule_id=capsule_imgs.capsule_id),'none') as imgs
+                   FROM capsule_together WHERE capsule_together.email = %(_email)s"""
+        cursor.execute(query, params_contents)
+        capsule_db = cursor.fetchall()
+
+        # Message(보내는 제목, 보내는사람 이메일, 받는사람 이메일)
+        msg = Message("추억이 도착했습니다. -발자취 드림-",
+                      sender="npe.dongauniv@gmail.com",
+                      recipients=today_email)
+
+        with app.app_context():
+            # 메일 내용 보내기
+            msg.body = today_content
+
+            show_image = []
+
+            # 메일 사진 보내기
+            for images in capsule_db:
+                image_arr = images[0].split(',')
+                for img in image_arr:
+                    show_image.append(img)
+                    with app.open_resource(upload_folder+img) as fp:
+                        msg.attach(img, "image/jpg", fp.read())
+
+            # 메일 템플릿
+            localhost = "http://168.115.207.0:5000/"
+            msg.html = render_template("mailTemplate.html",
+                                        img_path=localhost+show_image[0],
+                                        send_contents=today_content)
+
+
+            mail.send(msg)
+
+
+        //return app.logger.info('메일 성공!')
         js = json.dumps({'result_code': 200, 'result_body': capsule_db})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -844,6 +940,47 @@ def send_mail():
         cursor.close()
         conn.close()
 
+
+# 오늘 메일을 보내야하는 사람 선택하기
+@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=15, minute=12)
+@app.route('/select_mail', methods=['GET'])
+def select_mail():
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        query = """SELECT capsule.contents,
+                   ifnull((SELECT group_concat(concat(capsule_together.email)) FROM capsule_together WHERE capsule_together.capsule_id=capsule.id),'none') as like_id
+                   FROM capsule WHERE capsule.want_date = CURRENT_DATE """
+        cursor.execute(query)
+        capsule_db = cursor.fetchall()
+
+        mail_arr = []
+
+        for popDB in capsule_db:
+            db_contents = popDB[0]
+            db_mails = popDB[1].split(',')
+            for mails in db_mails:
+                mail_arr.append(mails)
+
+            send_mail(db_contents, mail_arr)
+
+            mail_arr = []
+
+        js = json.dumps({'result_code': 200, 'result_body': capsule_db})
+        resp = Response(js, status=200, mimetype='application/json')
+
+        return resp
+
+    except Exception as e:
+        return app.logger.error(e)
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+scheduler.start()
 
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
