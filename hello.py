@@ -40,7 +40,7 @@ ctx.push()
 app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
 app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
-app.config['MYSQL_DATABASE_HOST'] = 'dongaboomin.xyz'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
 upload_folder = "/root/trip_server/public"
