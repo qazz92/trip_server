@@ -40,11 +40,12 @@ ctx.push()
 app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
 app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
-app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+app.config['MYSQL_DATABASE_HOST'] = 'dongaboomin.xyz'
 mysql.init_app(app)
 
 upload_folder = "/root/trip_server/public"
 scheduler = BackgroundScheduler()
+
 
 # mysql = MySQL()
 # app = Flask(__name__, template_folder="./templates", static_folder="./public", static_path='')
@@ -161,41 +162,48 @@ def capsule():
         conn.close()
 
 
-def splitext_(path):
-    for ext in ['.tar.gz', '.tar.bz2']:
-        if path.endswith(ext):
-            return path[:-len(ext)], path[-len(ext):]
-        return splitext(path)
-
-
 # 회원가입
 @app.route('/reg', methods=['POST'])
 def reg():
     conn = mysql.connect()
     cursor = conn.cursor()
-
     try:
         _email = request.form['email']
-        _pw = request.form['pw']
-
+        _nickname = request.form['nickname']
+        _image = request.form['image']
+        Print.print_str(_email)
+        Print.print_str(_nickname)
+        Print.print_str(_image)
         params = {
             '_email': _email,
-            '_pw': generate_password_hash(_pw)
+            '_nickname': _nickname
         }
 
-        query = """insert into users (email, pw) 
-                 values (%(_email)s, %(_pw)s)"""
+        query = """select id, email from users where email=%(_email)s and nickname=%(_nickname)s"""
         cursor.execute(query, params)
-        conn.commit()
-        js = json.dumps({'result_code': 200})
-        resp = Response(js, status=200, mimetype='application/json')
-        return resp
+        result = cursor.fetchone()
+        if result is None:
+            params2 = {
+                '_email': _email,
+                '_nickname': _nickname,
+                '_image': _image
+            }
+            query2 = """insert into users (email, nickname, image) 
+                         values (%(_email)s, %(_nickname)s, %(_image)s)"""
+            cursor.execute(query2, params2)
+            conn.commit()
+            js = json.dumps({'result_code': conn.insert_id()})
+            resp = Response(js, status=200, mimetype='application/json')
+            return resp
+
+        else:
+            Print.print_str(str(result[0]))
+            js = json.dumps({'result_code': result[0]})
+            resp = Response(js, status=200, mimetype='application/json')
+            return resp
 
     except Exception as e:
-        conn.rollback()
-        js = json.dumps({'result_code': 500, 'result_body': str(e)})
-        resp = Response(js, status=200, mimetype='application/json')
-        return resp
+        return json.dumps({'error': str(e)})
 
     finally:
         cursor.close()
@@ -303,6 +311,9 @@ def getlist(user_id, page):
     try:
         i_page = int(page)
         i_user_id = int(user_id)
+
+        Print.print_str(i_user_id)
+
         query = """SELECT sns_contents.id,
                   sns_contents.post,
                   users.nickname,
@@ -850,6 +861,66 @@ def write():
 #     finally:
 #         cursor.close()
 #         conn.close()
+
+
+@app.route('/sns/list/like/<path:page>/<path:user_id>', methods=['GET'])
+def getlistlike(page, user_id):
+    conn = mysql.connect()
+    cursor = conn.cursor()
+
+    try:
+        i_page = int(page)
+        query = """SELECT sns_contents.id,
+                 sns_contents.post,
+                 users.nickname,
+                 users.email,
+                 users.id as user_id,
+                 users.image as user_profile,
+                 sns_location.location,
+                 sns_location.location_alias,
+                 (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
+                 ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
+                 ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=%(_user_id)s and sns_like.content_id=sns_contents.id),0) as like_id,
+                 (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
+                 (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
+                  DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
+                  FROM sns_contents JOIN users ON sns_contents.user_id = users.id
+                  JOIN sns_location ON sns_location.id=sns_contents.location_id
+                  JOIN sns_like ON sns_contents.id = sns_like.content_id WHERE sns_like.user_id=%(_user_id)s
+                  ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %(_page)s;"""
+
+        if i_page == 1:
+            params = {
+                '_page': 0,
+                '_user_id': int(user_id),
+            }
+            cursor.execute(query, params)
+        else:
+            params = {
+                '_page': (i_page + 1) * (i_page + 1) + (i_page + 1),
+                '_user_id': int(user_id),
+            }
+            cursor.execute(query, params)
+
+        columns = cursor.description
+        sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
+
+        if cursor.rowcount is None:
+            js = json.dumps({'result_code': 200, 'items_count': 0, 'result_body': sns_list})
+        else:
+            js = json.dumps({'result_code': 200, 'items_count': cursor.rowcount, 'result_body': sns_list})
+
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    except Exception as e:
+        js = json.dumps({'result_code': 500, 'result_body': str(e)})
+        resp = Response(js, status=200, mimetype='application/json')
+        return resp
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.route("/sns/like", methods=['POST'])
