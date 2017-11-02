@@ -1052,7 +1052,7 @@ def send_mail(today_content, today_email):
                     image_arr = images[0].split(',')
                     for img in image_arr:
                         show_image.append(img)
-                        with app.open_resource(upload_folder + img) as fp:
+                        with app.open_resource(upload_folder +"/"+ img) as fp:
                             msg.attach(img, "image/jpg", fp.read())
 
                     # 메일 템플릿
