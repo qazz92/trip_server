@@ -160,23 +160,25 @@ def gethashtag():
         conn.close()
 
 
-@app.route('/sns/list/<path:page>', methods=['GET'])
-def getlist(page):
+@app.route('/sns/<path:user_id>/list/<path:page>', methods=['GET'])
+def getlist(user_id, page):
     conn = mysql.connect()
     cursor = conn.cursor()
 
     try:
         i_page = int(page)
+        i_user_id = int(user_id)
         query = """SELECT sns_contents.id,
                   sns_contents.post,
                   users.nickname,
                   users.email,
                   users.id as user_id,
+                  users.image as user_profile,
 				  sns_location.location,
                   sns_location.location_alias,
                   (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
                   ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
-                  ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
+                  ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=%s and sns_like.content_id=sns_contents.id),0) as like_id,
                   (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
                   (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
                    DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
@@ -184,9 +186,9 @@ def getlist(page):
 	          JOIN sns_location ON sns_location.id=sns_contents.location_id
                 ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
         if i_page == 1:
-            cursor.execute(query, 0)
+            cursor.execute(query, (i_user_id, 0))
         else:
-            cursor.execute(query, (i_page + 1) * (i_page + 1) + (i_page + 1))
+            cursor.execute(query, (i_user_id, (i_page + 1) * (i_page + 1) + (i_page + 1)))
         # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
         columns = cursor.description
         sns_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
@@ -210,25 +212,28 @@ def getlist(page):
         conn.close()
 
 
-@app.route('/sns/list/<path:category>/<path:hashtag>/<path:page>', methods=['GET'])
-def getlistforhash(category, hashtag, page):
+@app.route('/sns/<path:user_id>/list/<path:category>/<path:hashtag>/<path:page>', methods=['GET'])
+def getlistforhash(user_id, category, hashtag, page):
     conn = mysql.connect()
     cursor = conn.cursor()
 
     try:
         i_page = int(page)
         i_category = int(category)
+        i_user_id = int(user_id)
+
         if 0 == i_category:
             query = """SELECT sns_contents.id,
                           sns_contents.post,
                           users.nickname,
                           users.email,
                           users.id as user_id,
+                          users.image as user_profile,
                           sns_location.location,
                           sns_location.location_alias,
                           (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
                           ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
-                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
+                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=%s and sns_like.content_id=sns_contents.id),0) as like_id,
                           (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
                           (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
                            DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
@@ -238,9 +243,9 @@ def getlistforhash(category, hashtag, page):
                         WHERE hash_id = (SELECT id FROM sns_hashtag WHERE tag=%s)
                         ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
             if i_page == 1:
-                cursor.execute(query, (hashtag, 0))
+                cursor.execute(query, (i_user_id, hashtag, 0))
             else:
-                cursor.execute(query, (hashtag, (i_page + 1) * (i_page + 1) + (i_page + 1)))
+                cursor.execute(query, (i_user_id, hashtag, (i_page + 1) * (i_page + 1) + (i_page + 1)))
         elif 1 == i_category:
             query = """SELECT sns_contents.id,
                           sns_contents.post,
@@ -251,7 +256,7 @@ def getlistforhash(category, hashtag, page):
                           sns_location.location_alias,
                           (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
                           ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
-                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
+                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=%s and sns_like.content_id=sns_contents.id),0) as like_id,
                           (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
                           (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
                            DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
@@ -260,9 +265,9 @@ def getlistforhash(category, hashtag, page):
                     WHERE users.nickname=%s
                         ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
             if i_page == 1:
-                cursor.execute(query, (hashtag, 0))
+                cursor.execute(query, (i_user_id, hashtag, 0))
             else:
-                cursor.execute(query, (int(hashtag), (i_page + 1) * (i_page + 1) + (i_page + 1)))
+                cursor.execute(query, (i_user_id, int(hashtag), (i_page + 1) * (i_page + 1) + (i_page + 1)))
         else:
             query = """SELECT sns_contents.id,
                           sns_contents.post,
@@ -273,7 +278,7 @@ def getlistforhash(category, hashtag, page):
                           sns_location.location_alias,
                           (SELECT group_concat(concat(img_path)) FROM sns_imgs WHERE sns_contents.id=sns_imgs.content_id) as imgs,
                           ifnull((SELECT group_concat(concat(users.nickname)) FROM sns_like JOIN users ON sns_like.user_id = users.id WHERE sns_like.content_id=sns_contents.id),'none') as like_user,
-                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=9 and sns_like.content_id=sns_contents.id),0) as like_id,
+                          ifnull((SELECT sns_like.id FROM sns_like WHERE sns_like.user_id=%s and sns_like.content_id=sns_contents.id),0) as like_id,
                           (SELECT count(*) FROM trip.sns_like WHERE content_id=sns_contents.id) as like_count,
                           (SELECT count(*) FROM sns_comment WHERE content_id=sns_contents.id) as comment_count,
                            DATE_FORMAT(sns_contents.updated_at, '%%Y/%%c/%%e %%T') as updated_at
@@ -283,9 +288,9 @@ def getlistforhash(category, hashtag, page):
                         ORDER BY sns_contents.updated_at DESC LIMIT 10 OFFSET %s"""
             hashtagSet = '%' + hashtag + '%'
             if i_page == 1:
-                cursor.execute(query, (hashtagSet, hashtagSet, 0))
+                cursor.execute(query, (i_user_id, hashtagSet, hashtagSet, 0))
             else:
-                cursor.execute(query, (hashtag, hashtagSet, (i_page + 1) * (i_page + 1) + (i_page + 1)))
+                cursor.execute(query, (i_user_id, hashtag, hashtagSet, (i_page + 1) * (i_page + 1) + (i_page + 1)))
 
         # row_headers = [x[0] for x in cursor.description]  # this will extract row headers
         columns = cursor.description
