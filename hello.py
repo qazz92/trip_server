@@ -1045,20 +1045,23 @@ def send_mail(today_content, today_email):
             show_image = []
 
             # 메일 사진 보내기
-            for images in capsule_db:
-                image_arr = images[0].split(',')
-                for img in image_arr:
-                    show_image.append(img)
-                    with app.open_resource(upload_folder + img) as fp:
-                        msg.attach(img, "image/jpg", fp.read())
+            if cursor.rowcount == 0:
+                Print.print_str("EMPTY")
+            else:
+                for images in capsule_db:
+                    image_arr = images[0].split(',')
+                    for img in image_arr:
+                        show_image.append(img)
+                        with app.open_resource(upload_folder + img) as fp:
+                            msg.attach(img, "image/jpg", fp.read())
 
-            # 메일 템플릿
-            host = "http://dongaboomin.xyz:20090/"
-            msg.html = render_template("mailTemplate.html",
-                                       img_path=host + show_image[0],
-                                       send_contents=today_content)
+                    # 메일 템플릿
+                    host = "http://dongaboomin.xyz:20090/"
+                    msg.html = render_template("mailTemplate.html",
+                                               img_path=host + show_image[0],
+                                               send_contents=today_content)
 
-            mail.send(msg)
+                    mail.send(msg)
 
         # return app.logger.info('메일 성공!')
         js = json.dumps({'result_code': 200, 'result_body': capsule_db})
@@ -1089,16 +1092,19 @@ def select_mail():
 
         mail_arr = []
 
-        for popDB in capsule_db:
-            db_contents = popDB[0]
-            db_mails = popDB[1].split(',')
-            for mails in db_mails:
-                Print.print_str(mails)
-                mail_arr.append(mails)
+        if cursor.rowcount == 0:
+            Print.print_str("EMPTY")
+        else:
+            for popDB in capsule_db:
+                db_contents = popDB[0]
+                db_mails = popDB[1].split(',')
+                for mails in db_mails:
+                    Print.print_str(mails)
+                    mail_arr.append(mails)
 
-            send_mail(db_contents, mail_arr)
+                send_mail(db_contents, mail_arr)
 
-            mail_arr = []
+                mail_arr = []
 
         js = json.dumps({'result_code': 200, 'result_body': capsule_db})
         resp = Response(js, status=200, mimetype='application/json')
