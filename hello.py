@@ -4,7 +4,7 @@ import flask
 import time
 from os.path import splitext
 import os.path
-from flask import Flask, json, Response, request
+from flask import Flask, json, Response, request, render_template
 from flaskext.mysql import MySQL
 from werkzeug.utils import secure_filename
 
@@ -17,11 +17,24 @@ from werkzeug.utils import secure_filename
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 
+# configuration
+SECRET_KEY = 'hidden'
+USERNAME = 'secret'
+PASSWORD = 'secret'
 
-
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 465
+MAIL_USE_TLS = False
+MAIL_USE_SSL = True
+MAIL_USERNAME = 'npe.dongauniv@gmail.com'
+MAIL_PASSWORD = 'Q!2dltnals'
 
 mysql = MySQL()
-app = Flask(__name__, static_folder="./public", static_path='')
+app = Flask(__name__, template_folder='./templates', static_folder='./public', static_path='')
+app.config.from_object(__name__)
+mail = Mail(app)
+ctx = app.app_context()
+ctx.push()
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
@@ -29,11 +42,36 @@ app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
 app.config['MYSQL_DATABASE_DB'] = 'trip'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
-mail = Mail(app)
+
+upload_folder = "/root/trip_server/public"
 scheduler = BackgroundScheduler()
 
-# upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
-upload_folder = "/root/trip_server/public"
+# mysql = MySQL()
+# app = Flask(__name__, template_folder="./templates", static_folder="./public", static_path='')
+# 
+# # configuration
+# SECRET_KEY = 'hidden'
+# USERNAME = 'secret'
+# PASSWORD = 'secret'
+# 
+# MAIL_SERVER = 'smtp.gmail.com'
+# MAIL_PORT = 465
+# MAIL_USE_TLS = False
+# MAIL_USE_SSL = True
+# MAIL_USERNAME = 'npe.dongauniv@gmail.com'
+# MAIL_PASSWORD = 'Q!2dltnals'
+# 
+# # MySQL configurations
+# app.config['MYSQL_DATABASE_USER'] = 'trip_npe'
+# app.config['MYSQL_DATABASE_PASSWORD'] = 'Alsrb12#$'
+# app.config['MYSQL_DATABASE_DB'] = 'trip'
+# app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+# mysql.init_app(app)
+# mail = Mail(app)
+# 
+# # upload_folder = "C:\\Users\JRokH\Documents\\trip_server\\public\\"
+# upload_folder = "/root/trip_server/public"
+# scheduler = BackgroundScheduler()
 
 
 # upload_folder = "/Users/qazz92/pythonProject/trip_server/public"
@@ -425,14 +463,15 @@ def searchlocation():
 
         Print.print_str(_search)
 
-        likeSe = "'%"+_search+"%'"
+        likeSe = "'%" + _search + "%'"
 
-        query = "select * from sns_location where sns_location.location like "+likeSe+" or sns_location.location_alias like "+likeSe
+        query = "select * from sns_location where sns_location.location like " + likeSe + " or sns_location.location_alias like " + likeSe
 
         cursor.execute(query)
 
         columns = cursor.description
-        sns_location_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in cursor.fetchall()]
+        sns_location_list = [{columns[index][0]: column for index, column in enumerate(value)} for value in
+                             cursor.fetchall()]
         Print.print_str(sns_location_list)
         js = json.dumps({'result_code': 200, 'result_body': sns_location_list})
         resp = Response(js, status=200, mimetype='application/json')
@@ -480,7 +519,7 @@ def insertlocation():
     finally:
         cursor.close()
         conn.close()
-        
+
 
 @app.route('/sns/search/<path:keyword>', methods=['GET'])
 def getkeyword(keyword):
@@ -722,6 +761,8 @@ def write():
     finally:
         cursor.close()
         conn.close()
+
+
 # @app.route('/sns/write', methods=['POST'])
 # def write():
 #     conn = mysql.connect()
@@ -915,20 +956,18 @@ def send_mail(today_content, today_email):
                 image_arr = images[0].split(',')
                 for img in image_arr:
                     show_image.append(img)
-                    with app.open_resource(upload_folder+img) as fp:
+                    with app.open_resource(upload_folder + img) as fp:
                         msg.attach(img, "image/jpg", fp.read())
 
             # 메일 템플릿
-            localhost = "http://168.115.207.0:5000/"
+            host = "http://dongaboomin.xyz:20090/"
             msg.html = render_template("mailTemplate.html",
-                                        img_path=localhost+show_image[0],
-                                        send_contents=today_content)
-
+                                       img_path=host + show_image[0],
+                                       send_contents=today_content)
 
             mail.send(msg)
 
-
-        //return app.logger.info('메일 성공!')
+        # return app.logger.info('메일 성공!')
         js = json.dumps({'result_code': 200, 'result_body': capsule_db})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
@@ -985,7 +1024,5 @@ scheduler.start()
 app.wsgi_app = ProxyFix(app.wsgi_app)
 
 if __name__ == '__main__':
-    app.debug = True
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        Print.print_str("start!")
+    # app.debug = True
     app.run(host='0.0.0.0')
