@@ -414,7 +414,7 @@ def getlistforhash(user_id, category, hashtag, page):
             if i_page == 1:
                 cursor.execute(query, (i_user_id, hashtag, 0))
             else:
-                cursor.execute(query, (i_user_id, int(hashtag), (i_page + 1) * (i_page + 1) + (i_page + 1)))
+                cursor.execute(query, (i_user_id, hashtag, (i_page + 1) * (i_page + 1) + (i_page + 1)))
         else:
             query = """SELECT sns_contents.id,
                           sns_contents.post,
@@ -1077,7 +1077,7 @@ def send_mail(today_content, today_email):
 
 
 # 오늘 메일을 보내야하는 사람 선택하기
-@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=8, minute=5)
+@scheduler.scheduled_job('cron', day_of_week='mon-sun', hour=6, minute=0)
 @app.route('/select_mail', methods=['GET'])
 def select_mail():
     conn = mysql.connect()
