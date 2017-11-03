@@ -629,7 +629,8 @@ def getcommentlist(content_id, page):
         i_page = int(page)
 
         query = """SELECT sns_comment.id as id, 
-            sns_comment.article as article, users.nickname as nickname, 
+            sns_comment.article as article, users.nickname as nickname,
+            users.image as profile, 
              DATE_FORMAT(sns_comment.updated_at, '%%Y/%%c/%%e %%T') as updated_at  
             FROM sns_comment JOIN users ON sns_comment.user_id = users.id WHERE content_id = %(_content_id)s
             ORDER BY sns_comment.updated_at LIMIT 10 OFFSET %(_page)s"""
