@@ -515,10 +515,20 @@ def insertlocation():
             '_location_alias': _location_alias,
         }
 
-        query = """insert into sns_location (location, location_alias) 
-                 values (%(_location)s, %(_location_alias)s)"""
-        cursor.execute(query, params)
-        conn.commit()
+        selectQuery = """select id, location, location_alias from sns_location where 
+                location=%(_location)s AND location_alias=%(_location_alias)s"""
+        cursor.execute(selectQuery, params)
+        row_count = cursor.rowcount
+        if row_count == 0:
+            Print.print_str("row====0")
+            query = """insert into sns_location (location, location_alias) 
+            values (%(_location)s, %(_location_alias)s)"""
+            cursor.execute(query, params)
+            conn.commit()
+        else:
+            Print.print_str("row!=0")
+
+
         js = json.dumps({'result_code': 200})
         resp = Response(js, status=200, mimetype='application/json')
         return resp
