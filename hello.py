@@ -192,7 +192,7 @@ def reg():
                          values (%(_email)s, %(_nickname)s, %(_image)s)"""
             cursor.execute(query2, params2)
             conn.commit()
-            js = json.dumps({'result_code': conn.insert_id()})
+            js = json.dumps({'result_code': cursor.lastrowid})
             resp = Response(js, status=200, mimetype='application/json')
             return resp
 
