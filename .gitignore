@@ -13,3 +13,5 @@ tcl/
 __pycache__/
 
 pip-selfcheck.json
+
+public/
